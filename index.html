@@ -105,21 +105,19 @@
     var lat = pos.coords.latitude.toFixed(6);
     var lon = pos.coords.longitude.toFixed(6);
     var acc = Math.round(pos.coords.accuracy);
-    var mapsLink = 'https://maps.google.com/?q=' + lat + ',' + lon;
+    // Generic location page: shows the pin and lets the driver open it in any maps app.
+    var q = '?ll=' + lat + '%2C' + lon + '&acc=' + acc + (custName ? '&c=' + encodeURIComponent(custName) : '');
+    var mapPage = 'https://locate.901expresstowing.com/map/' + q;
     var who = custName ? custName : 'A customer';
     var body = who + ' opened the tow link and shared their location.\n' +
-               'Map: ' + mapsLink + '\nAccuracy: ~' + acc + 'm';
+               'Location: ' + mapPage + '\nCoordinates: ' + lat + ', ' + lon + '\nAccuracy: ~' + acc + 'm';
     var title = custAscii ? (custAscii + ' shared location') : 'Customer location shared';
-
-    // Commas inside URLs break ntfy's Actions header, so encode them as %2C.
-    var navEnc  = 'https://www.google.com/maps/dir/?api=1&destination=' + lat + '%2C' + lon;
-    var mapsEnc = 'https://maps.google.com/?q=' + lat + '%2C' + lon;
 
     function send(withButtons){
       var headers = { 'Title': title, 'Tags': 'round_pushpin,rotating_light', 'Priority': 'high' };
       if(withButtons){
-        headers['Click'] = mapsEnc;
-        headers['Actions'] = 'view, Navigate, ' + navEnc + '; view, Open map, ' + mapsEnc;
+        headers['Click'] = mapPage;
+        headers['Actions'] = 'view, Open location, ' + mapPage;
       }
       return fetch('https://ntfy.sh/' + NTFY_TOPIC, { method:'POST', headers:headers, body:body })
         .then(function(res){ if(!res.ok) throw new Error('status ' + res.status); return res; });

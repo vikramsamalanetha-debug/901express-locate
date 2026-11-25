@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#d62828">
+<meta name="robots" content="noindex">
+<title>Customer Location — 901 Express Towing &amp; Recovery</title>
+<link rel="icon" href="https://901expresstowing.com/wp-content/uploads/2025/05/cropped-Logo-scaled-1-270x270.png">
+<style>
+  :root{--red:#d62828;--red-dark:#b01f1f;--ink:#1d1f23;--muted:#5a6169;--bg:#f5f6f8;--card:#fff;--line:#e4e7ec}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);padding:16px;-webkit-text-size-adjust:100%}
+  .card{max-width:520px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:20px;box-shadow:0 8px 28px rgba(0,0,0,.08)}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 14px}
+  .mapbox{width:100%;height:280px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#e9ecef}
+  .mapbox iframe{width:100%;height:100%;border:0}
+  .coords{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;margin:12px 0 4px;text-align:center}
+  .acc{color:var(--muted);font-size:13px;text-align:center;margin-bottom:6px}
+  a.btn,button.btn{display:block;width:100%;text-align:center;text-decoration:none;border:0;border-radius:12px;
+    font-size:17px;font-weight:700;padding:15px;margin-top:10px;cursor:pointer;font-family:inherit}
+  .primary{background:var(--red);color:#fff}
+  .primary:active{background:var(--red-dark)}
+  .secondary{background:#fff;color:var(--ink);border:1px solid var(--line)!important}
+  .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .row a.btn{font-size:14px;padding:13px 6px}
+  .err{background:#fdecea;color:#c0392b;border:1px solid #f5c6c0;border-radius:11px;padding:15px;line-height:1.5}
+  footer{margin-top:18px;font-size:12px;color:#8a9099;text-align:center}
+  footer a{color:#8a9099}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1 id="who">Customer location</h1>
+  <p class="sub">Shared from the 901 Express location link</p>
+
+  <div id="bad" class="err hidden">This link doesn't contain a valid location. Ask the customer to open the location link again.</div>
+
+  <div id="good" class="hidden">
+    <div class="mapbox"><iframe id="map" title="Customer location map" loading="lazy"></iframe></div>
+    <div class="coords" id="coords"></div>
+    <div class="acc" id="acc"></div>
+
+    <a class="btn primary" id="openAny" href="#">📍 Open in my maps app</a>
+    <div class="row">
+      <a class="btn secondary" id="apple" href="#" target="_blank" rel="noopener">Apple Maps</a>
+      <a class="btn secondary" id="google" href="#" target="_blank" rel="noopener">Google Maps</a>
+      <a class="btn secondary" id="waze" href="#" target="_blank" rel="noopener">Waze</a>
+    </div>
+    <button class="btn secondary" id="copy" type="button">Copy coordinates</button>
+  </div>
+
+  <footer>A product of <a href="https://www.litamerica.net" target="_blank" rel="noopener">LIT America</a></footer>
+</div>
+
+<script>
+(function(){
+  var p = new URLSearchParams(location.search);
+  var ll = (p.get('ll') || '').split(',');
+  var lat = parseFloat(ll[0]), lon = parseFloat(ll[1]);
+  if (!(isFinite(lat) && isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180)) {
+    document.getElementById('bad').classList.remove('hidden');
+    return;
+  }
+  lat = lat.toFixed(6); lon = lon.toFixed(6);
+  var pair = lat + ',' + lon;
+
+  var name = (p.get('c') || '').trim().slice(0, 40);
+  if (name) document.getElementById('who').textContent = name + "'s location";
+  var acc = parseInt(p.get('acc'), 10);
+  if (isFinite(acc)) document.getElementById('acc').textContent = 'GPS accuracy: about ' + acc + ' m';
+  document.getElementById('coords').textContent = pair;
+
+  // Map preview (OpenStreetMap, no API key needed)
+  var d = 0.004;
+  document.getElementById('map').src =
+    'https://www.openstreetmap.org/export/embed.html?bbox=' +
+    (lon - d) + ',' + (lat - d) + ',' + (+lon + d) + ',' + (+lat + d) +
+    '&layer=mapnik&marker=' + pair;
+
+  var apple  = 'https://maps.apple.com/?daddr=' + pair + '&q=' + encodeURIComponent(name || 'Customer');
+  var google = 'https://www.google.com/maps/dir/?api=1&destination=' + pair;
+  var waze   = 'https://waze.com/ul?ll=' + pair + '&navigate=yes';
+  document.getElementById('apple').href = apple;
+  document.getElementById('google').href = google;
+  document.getElementById('waze').href = waze;
+
+  // "Open in my maps app": Android shows its app chooser for geo: links;
+  // iPhone has no chooser, so it opens the built-in Apple Maps.
+  var ua = navigator.userAgent || '';
+  var isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var isAndroid = /Android/i.test(ua);
+  document.getElementById('openAny').href =
+    isAndroid ? ('geo:' + pair + '?q=' + pair + '(' + encodeURIComponent(name || 'Customer') + ')')
+    : isIOS ? apple
+    : google;
+
+  document.getElementById('copy').addEventListener('click', function(){
+    var b = this;
+    function done(){ b.textContent = 'Copied ✓'; setTimeout(function(){ b.textContent = 'Copy coordinates'; }, 2000); }
+    if (navigator.clipboard) navigator.clipboard.writeText(pair).then(done, function(){ prompt('Coordinates:', pair); });
+    else prompt('Coordinates:', pair);
+  });
+
+  document.getElementById('good').classList.remove('hidden');
+})();
+</script>
+</body>
+</html>

@@ -106,25 +106,28 @@
     var lon = pos.coords.longitude.toFixed(6);
     var acc = Math.round(pos.coords.accuracy);
     var mapsLink = 'https://maps.google.com/?q=' + lat + ',' + lon;
-    var navLink  = 'https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lon;
     var who = custName ? custName : 'A customer';
     var body = who + ' opened the tow link and shared their location.\n' +
                'Map: ' + mapsLink + '\nAccuracy: ~' + acc + 'm';
     var title = custAscii ? (custAscii + ' shared location') : 'Customer location shared';
 
+    // Commas inside URLs break ntfy's Actions header, so encode them as %2C.
+    var navEnc  = 'https://www.google.com/maps/dir/?api=1&destination=' + lat + '%2C' + lon;
+    var mapsEnc = 'https://maps.google.com/?q=' + lat + '%2C' + lon;
+
+    function send(withButtons){
+      var headers = { 'Title': title, 'Tags': 'round_pushpin,rotating_light', 'Priority': 'high' };
+      if(withButtons){
+        headers['Click'] = mapsEnc;
+        headers['Actions'] = 'view, Navigate, ' + navEnc + '; view, Open map, ' + mapsEnc;
+      }
+      return fetch('https://ntfy.sh/' + NTFY_TOPIC, { method:'POST', headers:headers, body:body })
+        .then(function(res){ if(!res.ok) throw new Error('status ' + res.status); return res; });
+    }
+
     setStatus('wait', 'Sending your location…');
-    fetch('https://ntfy.sh/' + NTFY_TOPIC, {
-      method:'POST',
-      headers:{
-        'Title': title,
-        'Tags': 'round_pushpin,rotating_light',
-        'Priority': 'high',
-        'Click': mapsLink,
-        'Actions': 'view, Navigate, ' + navLink + '; view, Open map, ' + mapsLink
-      },
-      body: body
-    }).then(function(res){
-      if(!res.ok) throw new Error('bad status');
+    // Try the alert with buttons; if ntfy rejects it, fall back to the plain alert (same as Lexington).
+    send(true).catch(function(){ return send(false); }).then(function(){
       btn.classList.add('hidden');
       setStatus('ok', "<b>Got it. We see your location.</b><br>Hang tight, we're dispatching a truck. Keep your phone handy in case our driver needs to reach you.");
     }).catch(function(){
